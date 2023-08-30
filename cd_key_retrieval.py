@@ -25,13 +25,20 @@ API Endpoints Used:
 Note: This code is designed to retrieve CD key information from different regions and handle possible return codes.
 
 """
+import os
 import requests
+from dotenv import load_dotenv
 
-URL = "https://sg-hk4e-api.hoyoverse.com/common/apicdkey/api/webExchangeCdkey"
+load_dotenv()
+CDKEY_API_URL = "https://sg-hk4e-api.hoyoverse.com/common/apicdkey/api/webExchangeCdkey"
 
 
-def get_cdkey_info(
-    uid: int, cdkey: str, cookie: str, region: str, game_biz_parameter: str
+def get_cdkey_status(
+    user_id: int,
+    cd_key: str,
+    auth_cookie: str,
+    target_region: str,
+    game_biz_parameter: str,
 ) -> str:
     """
     Retrieve CD key information for a specific user, CD key, and region.
@@ -57,27 +64,29 @@ def get_cdkey_info(
     API Endpoint Used:
         'webExchangeCdkey' endpoint from "https://sg-hk4e-api.hoyoverse.com/common/apicdkey/api/"
     """
-    params = {
-        "uid": uid,
-        "region": region,
+    request_params = {
+        "uid": user_id,
+        "region": target_region,
         "lang": "en",
-        "cdkey": cdkey,
+        "cdkey": cd_key,
         "game_biz": game_biz_parameter,
         "sLangKey": "en-us",
     }
-    headers = {"Cookie": cookie}
-    with requests.get(URL, params=params, headers=headers, timeout=1) as response:
-        cdkey_info = response.json()
+    headers = {"Cookie": auth_cookie}
+    with requests.get(
+        CDKEY_API_URL, params=request_params, headers=headers, timeout=1
+    ) as response:
+        cd_key_info = response.json()
 
     return {
         0: "success",
         -2001: "expired",
         -2003: "invalid",
         -2017: "already in use",
-    }.get(cdkey_info["retcode"], "unknown")
+    }.get(cd_key_info["retcode"], "unknown")
 
 
-def main(cdkey: str, cookie: str) -> str:
+def main(cd_key: str, auth_cookie: str) -> str:
     """
     Main function to retrieve and display CD key information for various regions.
 
@@ -87,7 +96,7 @@ def main(cdkey: str, cookie: str) -> str:
 
     Args:
         cdkey (str): The CD key to exchange.
-        cookie (str): User's cookie for authentication.
+        cookie (str): User's cookie for authentication. account_id_v2 & cookie_token_v2 required!
 
     Returns:
         str: A string indicating the status of the CD key information.
@@ -103,34 +112,47 @@ def main(cdkey: str, cookie: str) -> str:
     Dependencies:
         - The 'get_cdkey_info' function defined in this module.
     """
-    regions = ["os_usa", "os_euro", "os_asia", "os_cht"]
-    for region in regions:
-        url = (
+    target_regions = ["os_usa", "os_euro", "os_asia", "os_cht"]
+    for target_region in target_regions:
+        user_roles_url = (
             "https://api-account-os.hoyoverse.com/account/binding/api/"
             "getUserGameRolesByCookieToken"
         )
 
         response = requests.get(
-            url,
+            user_roles_url,
             {
                 "lang": "en",
-                "region": region,
+                "region": target_region,
                 "game_biz": "hk4e_global",
                 "sLangKey": "en-us",
             },
-            headers={"Cookie": cookie},
+            headers={"Cookie": auth_cookie},
             timeout=1,
         ).json()
 
-        user_game_roles_data = response["data"]["list"]
+        data = response["data"]
+
+        if not data:
+            continue
+
+        user_game_roles_data = data["list"]
 
         if user_game_roles_data:
             first_user_game_role = user_game_roles_data[0]
-            cdkey_info = get_cdkey_info(
+            cd_key_status = get_cdkey_status(
                 first_user_game_role["game_uid"],
-                cdkey,
-                cookie,
-                region,
+                cd_key,
+                auth_cookie,
+                target_region,
                 first_user_game_role["game_biz"],
             )
-            return cdkey_info
+            return cd_key_status
+
+
+print(
+    main(
+        "GENSHINGIFT",
+        os.getenv("AUTH_COOKIE"),
+    )
+)

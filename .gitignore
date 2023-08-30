@@ -1,4 +1,5 @@
+.env
 venv
-\[Kusonime\]*\[*
-open*
 git*
+open*
+\[Kusonime\]*\[*
