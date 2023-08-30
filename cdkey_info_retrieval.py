@@ -90,7 +90,7 @@ def main(cd_key: str, auth_cookie: str) -> dict:
     Returns:
         dict: A nested dictionary containing CD key information statuses for various regions and users.
     """
-    cd_key_statuses = {}
+    cd_key_statuses = None
     session = requests.Session()
     session.headers.update({"Cookie": auth_cookie})
     target_regions = ["os_usa", "os_euro", "os_asia", "os_cht"]
@@ -109,18 +109,20 @@ def main(cd_key: str, auth_cookie: str) -> dict:
                 "game_biz": "hk4e_global",
                 "sLangKey": "en-us",
             },
-            timeout=1,
+            timeout=2,
         ).json()
 
         data = response["data"]
 
         if not data:
+            print(f"No data for region: {target_region}")
             continue
 
         user_game_roles_data = data["list"]
 
         for user_game_role in user_game_roles_data:
             game_uid = user_game_role["game_uid"]
+            print(f"Fetching CD key status for user {game_uid} in region {target_region}")
 
             cd_key_status = get_cdkey_status(
                 session,
@@ -130,17 +132,23 @@ def main(cd_key: str, auth_cookie: str) -> dict:
                 user_game_role["game_biz"],
             )
 
+            if not cd_key_statuses:
+                cd_key_statuses = {}
+
             if not target_region in cd_key_statuses:
                 cd_key_statuses[target_region] = {}
 
             cd_key_statuses[target_region][game_uid] = cd_key_status
 
+    print("CD key status retrieval completed.")
     return cd_key_statuses
 
+token = ""
+cd_key = "NS92PG6DB52M"
 
 print(
     main(
-        "GENSHINGIFT",
-        os.getenv("AUTH_COOKIE"),
+        cd_key,
+        token,
     )
 )
